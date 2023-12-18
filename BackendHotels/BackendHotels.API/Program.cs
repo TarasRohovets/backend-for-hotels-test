@@ -1,6 +1,7 @@
 using BackendHotels.Services;
 using BackendHotels.Services.Interfaces;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Polly;
 using Polly.Extensions.Http;
 using System.Net.Http;
@@ -11,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddMemoryCache();
 
 builder.Services.AddHttpClient<IProductsService, ProductsService>(client =>
 {
@@ -25,9 +27,10 @@ var apiKey = builder.Configuration.GetSection("BestBuyAPIKey");
 builder.Services.AddTransient<IProductsService> (sp =>
 {
     var httpClient = sp.GetRequiredService<HttpClient>();
+    var logger = sp.GetRequiredService<ILogger<ProductsService>>();
     httpClient.BaseAddress = new Uri(url.Value);
 
-    return new ProductsService(apiKey.Value, httpClient);
+    return new ProductsService(apiKey.Value, httpClient, logger);
 });
 
 
@@ -42,6 +45,13 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+app.UseCors(options =>
+{
+    options.AllowAnyHeader();
+    options.AllowAnyMethod();
+    options.AllowAnyOrigin();
+});
 
 app.MapControllers();
 

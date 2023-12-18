@@ -9,6 +9,6 @@ namespace BackendHotels.Services.Interfaces
 {
     public interface IProductsService
     {
-        Task<PaginatedProductsDto> GetProductsPaginatedAsync(string? filterByNameValue = null, string? filterByCategoryValue = null, string? orderByValue = null, string? orderByDirection = null);
+        Task<PaginatedProductsDto> GetProductsPaginatedAsync(string? filterByNameValue = null, string? filterByCategoryValue = null, string? orderByValue = null, string? orderByDirection = null, int? page = 1);
     }
 }

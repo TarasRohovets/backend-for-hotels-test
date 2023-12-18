@@ -1,5 +1,6 @@
 ﻿using BackendHotels.Contracts.Dtos;
 using BackendHotels.Services.Interfaces;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -9,41 +10,51 @@ namespace BackendHotels.Services
     public class ProductsService : IProductsService
     {
         private readonly string _prefix = "products";
+        private readonly int _defaultPageSize = 10;
         private readonly string _apiKey;
         private readonly HttpClient _httpClient;
-        public ProductsService(string apiKey, HttpClient httpClient) 
+        ILogger<ProductsService> _logger;
+        public ProductsService(string apiKey, HttpClient httpClient, ILogger<ProductsService> logger) 
         {
            _apiKey = apiKey;
            _httpClient = httpClient;
+            _logger = logger;
         }
 
-        public async Task<PaginatedProductsDto> GetProductsPaginatedAsync(string? filterByNameValue = null, string? filterByCategoryValue = null, string? orderByValue = null, string? orderByDirection = null)
+        public async Task<PaginatedProductsDto> GetProductsPaginatedAsync(string? filterByNameValue = null, string? filterByCategoryValue = null, string? orderByValue = null, string? orderByDirection = null, int? page = 1)
         {
-            var url = BuildGetProductsUrl(filterByNameValue, filterByCategoryValue, orderByValue, orderByDirection);
+            var url = BuildGetProductsUrl(filterByNameValue, filterByCategoryValue, orderByValue, orderByDirection, page);
 
-            var responseString = await _httpClient.GetStringAsync(url);
+            string responseString = "";
+            try
+            {
+                responseString = await _httpClient.GetStringAsync(url);
+
+            } catch (Exception ex)
+            {
+                _logger.LogError("[ProductsService] GetProductsPaginatedAsync: error calling {url}, stackTrace: {ex}", url, ex);
+                throw;
+            }
+           
 
             var products = JsonConvert.DeserializeObject<PaginatedProductsDto>(responseString);
 
             return products;
         }
 
-        public async Task GetProductDetailsAsync()
-        {
-
-        }
-
-        private string BuildGetProductsUrl(string? filterByNameValue = null, string? filterByCategoryValue = null, string? orderByValue = null, string? orderByDirection = null)
+        private string BuildGetProductsUrl(string? filterByNameValue = null, string? filterByCategoryValue = null, string? orderByValue = null, string? orderByDirection = null, int? page = 1)
         {
             List<string> listOfParameters = new List<string>();
             if(!string.IsNullOrEmpty(filterByNameValue))
             {
-                listOfParameters.Add($"name={filterByNameValue}");
+                var encoded = Uri.EscapeDataString(filterByNameValue);
+                listOfParameters.Add($"name={encoded}");
             };
 
             if (!string.IsNullOrEmpty(filterByCategoryValue))
             {
-                listOfParameters.Add($"categoryPath.name={filterByCategoryValue}");
+                var encoded = Uri.EscapeDataString(filterByCategoryValue);
+                listOfParameters.Add($"categoryPath.name={encoded}");
             };
 
             string filterByConstructor = "";
@@ -66,7 +77,7 @@ namespace BackendHotels.Services
                 $"&sort={orderByValue}.{orderByDirection}" :
                 string.Empty;
 
-            var url = _prefix + $"{filterByConstructor}?format=json&pageSize=3&page=10{orderConstructor}&apiKey={_apiKey}";
+            var url = _prefix + $"{filterByConstructor}?format=json&pageSize={_defaultPageSize}&page={page}{orderConstructor}&apiKey={_apiKey}";
 
             return url;
         }
